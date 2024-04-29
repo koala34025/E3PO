@@ -21,9 +21,59 @@ from copy import deepcopy
 import numpy as np
 from e3po.utils.projection_utilities import fov_to_3d_polar_coord,\
     _3d_polar_coord_to_pixel_coord, pixel_coord_to_tile
+from sklearn.linear_model import LinearRegression
 
+def my_predict_motion_tile(motion_history, motion_history_size, motion_prediction_size):
+    """
+    Predicting motion with given historical information and prediction window size.
+    (As an example, users can implement their customized function.)
+
+    Parameters
+    ----------
+    motion_history: dict
+        a dictionary recording the historical motion, with the following format:
+
+    motion_history_size: int
+        the size of motion history to be used for predicting
+    motion_prediction_size: int
+        the size of motion to be predicted
+
+    Returns
+    -------
+    list
+        The predicted record list, which sequentially store the predicted motion of the future pw chunks.
+         Each motion dictionary is stored in the following format:
+            {'yaw ': yaw,' pitch ': pitch,' scale ': scale}
+    """
+    hw = [d['motion_record'] for d in motion_history]
+
+    # Prepare data for linear regression
+    X = np.arange(len(hw)).reshape(-1, 1)
+    yaws = np.array([motion['yaw'] for motion in hw])
+    pitches = np.array([motion['pitch'] for motion in hw])
+    #scales = np.array([motion['scale'] for motion in hw])
+
+    # Fit linear regression model
+    model_yaw = LinearRegression().fit(X, yaws)
+    model_pitch = LinearRegression().fit(X, pitches)
+    #model_scale = LinearRegression().fit(X, scales)
+
+    # Predict future motion
+    X_future = np.arange(len(hw), len(hw) + motion_prediction_size).reshape(-1, 1)
+    predicted_yaw = model_yaw.predict(X_future)
+    predicted_pitch = model_pitch.predict(X_future)
+    #predicted_scale = model_scale.predict(X_future)
+
+    # Store predicted motion
+    predicted_record = []
+    for i in range(motion_prediction_size):
+        predicted_motion = {'yaw': predicted_yaw[i], 'pitch': predicted_pitch[i], 'scale': 2}
+        predicted_record.append(predicted_motion)
+
+    return predicted_record
 
 def predict_motion_tile(motion_history, motion_history_size, motion_prediction_size):
+    return my_predict_motion_tile(motion_history, motion_history_size, motion_prediction_size)
     """
     Predicting motion with given historical information and prediction window size.
     (As an example, users can implement their customized function.)
